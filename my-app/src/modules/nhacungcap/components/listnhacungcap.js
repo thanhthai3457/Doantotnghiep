@@ -119,7 +119,6 @@ export default {
   },
   methods: {
     OpenThem () {
-      console.log('abc');
       this.dialog = true
       this.isThem = true
     },
