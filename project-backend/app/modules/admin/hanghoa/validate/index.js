@@ -26,13 +26,16 @@ const hangHoaVal = {
   },
   save: {
     payload:{
-        _id: Joi.string(),
+        _id: Joi.ObjectId(),
         loaiHangHoaID: Joi.object().required(),
         tenHangHoa: Joi.string().required(),
         danhPhap: Joi.string().required(),
         donViTinh: Joi.string().required(),
         trongLuong: Joi.number().required(),
         tongSoLuong: Joi.number()
+    },
+    options: {
+      allowUnknown: true
     }
   },
   options:{

@@ -10,8 +10,9 @@ export default {
     }
   },
   methods: {
-    hello () {
-      console.log('dat la a',a)
+    LogOut () {
+      localStorage.clear()
+      this.$router.push({path: '/login.html'})
     }
   },
 }

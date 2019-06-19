@@ -32,7 +32,8 @@ config.web = {
     port: 6379,
     detect_buffers: true,
     prefix: Pack.name + ':'
-  }
+  },
+  key: 'doanphanthanhthai'
 }
 
 module.exports = config

@@ -6,6 +6,7 @@ import NhanVien from './modules/nhanvien/store/index.js'
 import NhaCungCap from './modules/nhanvien/store/index.js'
 import HangHoa from './modules/hanghoa/index.js'
 import PhieuNhap from './modules/phieunhap/index.js'
+import Dashboard from './modules/dashboard/index.js'
 Vue.use(Vuex)
 
 export const store = new Vuex.Store({
@@ -15,6 +16,7 @@ export const store = new Vuex.Store({
         NhanVien: NhanVien,
         NhaCungCap: NhaCungCap,
         HangHoa: HangHoa,
-        PhieuNhap: PhieuNhap
+        PhieuNhap: PhieuNhap,
+        Dashboard: Dashboard
     }
 })

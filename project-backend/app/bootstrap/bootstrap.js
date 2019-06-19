@@ -21,8 +21,12 @@ export const loader = async function (server) {
     },
     {
       plugin: require('../lib/mongo.js'),
-      
-      
+    },
+    {
+      plugin: require('../lib/redis.js'),
+    },
+    {
+      plugin: require('../lib/auth.js'),
     }
   ])
     .then(async (err) => {
@@ -36,6 +40,8 @@ export const loader = async function (server) {
       require('@models/nhacungcap/model.js')
       require('@models/hanghoa/model.js')
       require('@models/phieunhap/model.js')
+      require('@models/taikhoan/model.js')
+      require('@models/mail/model.js')
 
       /* Load Modules */
       let modules = []
@@ -45,6 +51,8 @@ export const loader = async function (server) {
       modules.push(require('@modules/admin/nhacungcap'))
       modules.push(require('@modules/admin/hanghoa'))
       modules.push(require('@modules/admin/phieunhap'))
+      modules.push(require('@modules/users'))
+      modules.push(require('@modules/mail'))
 
       if (modules.length) {
         let options = {}

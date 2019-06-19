@@ -171,6 +171,10 @@ const loader = exports.loader = async function (server) {
     }
   }, {
     plugin: __webpack_require__(/*! ../lib/mongo.js */ "./app/lib/mongo.js")
+  }, {
+    plugin: __webpack_require__(/*! ../lib/redis.js */ "./app/lib/redis.js")
+  }, {
+    plugin: __webpack_require__(/*! ../lib/auth.js */ "./app/lib/auth.js")
   }]).then(async err => {
     if (err) {
       console.log(err);
@@ -189,6 +193,10 @@ const loader = exports.loader = async function (server) {
     __webpack_require__(/*! @models/hanghoa/model.js */ "./app/models/hanghoa/model.js");
 
     __webpack_require__(/*! @models/phieunhap/model.js */ "./app/models/phieunhap/model.js");
+
+    __webpack_require__(/*! @models/taikhoan/model.js */ "./app/models/taikhoan/model.js");
+
+    __webpack_require__(/*! @models/mail/model.js */ "./app/models/mail/model.js");
     /* Load Modules */
 
 
@@ -199,6 +207,8 @@ const loader = exports.loader = async function (server) {
     modules.push(__webpack_require__(/*! @modules/admin/nhacungcap */ "./app/modules/admin/nhacungcap/index.js"));
     modules.push(__webpack_require__(/*! @modules/admin/hanghoa */ "./app/modules/admin/hanghoa/index.js"));
     modules.push(__webpack_require__(/*! @modules/admin/phieunhap */ "./app/modules/admin/phieunhap/index.js"));
+    modules.push(__webpack_require__(/*! @modules/users */ "./app/modules/users/index.js"));
+    modules.push(__webpack_require__(/*! @modules/mail */ "./app/modules/mail/index.js"));
 
     if (modules.length) {
       let options = {};
@@ -213,6 +223,160 @@ const loader = exports.loader = async function (server) {
     } // console.log(server)
 
   });
+};
+
+/***/ }),
+
+/***/ "./app/lib/auth.js":
+/*!*************************!*\
+  !*** ./app/lib/auth.js ***!
+  \*************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var _hapiAuthJwt = __webpack_require__(/*! hapi-auth-jwt2 */ "hapi-auth-jwt2");
+
+var _hapiAuthJwt2 = _interopRequireDefault(_hapiAuthJwt);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.register = async (server, options) => {
+  const validate = async function (decoded, request) {
+    const redis = server.redis;
+    let res = await redis.getAsync(decoded.id);
+
+    if (res) {
+      let session = JSON.parse(res);
+
+      if (session.valid === true) {
+        return {
+          isValid: true
+        };
+      } else {
+        return {
+          isValid: false
+        };
+      }
+    } else {
+      return {
+        isValid: false
+      };
+    }
+  };
+
+  await server.register(__webpack_require__(/*! hapi-auth-jwt2 */ "hapi-auth-jwt2"));
+  server.auth.strategy('jwt', 'jwt', {
+    key: global.CONFIG.get('web.key'),
+    // Never Share your secret key
+    validate: validate,
+    // validate function defined above
+    verifyOptions: {
+      algorithms: ['HS256'] // pick a strong algorithm
+
+    }
+  });
+  server.auth.default('jwt');
+};
+
+exports.name = 'authu-jwt-2';
+exports.dependencies = ['app-redis'];
+
+/***/ }),
+
+/***/ "./app/lib/mail.js":
+/*!*************************!*\
+  !*** ./app/lib/mail.js ***!
+  \*************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+const nodemailer = __webpack_require__(/*! nodemailer */ "nodemailer");
+
+const sendMail = async options => {
+  console.log('bo day mail'); // create reusable transporter object using the default SMTP transport
+
+  let transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    // true for 465, false for other ports
+    auth: {
+      user: 'ngocthu34571@gmail.com',
+      // generated ethereal user
+      pass: 'toilatoi123' // generated ethereal password
+
+    }
+  });
+  let optionsMail = {
+    from: '"Fred Foo 👻" <ngocthu34571@gmail.com>',
+    // sender address
+    to: 'thanhthai3457@gmail.com',
+    // list of receivers
+    subject: options.subject,
+    // Subject line
+    text: options.text,
+    // plain text body
+    html: options.content // html body
+    // send mail with defined transport object
+
+  };
+  await transporter.sendMail(optionsMail, function (err, res) {
+    if (err) {
+      console.log('Loi gui mail', err);
+    } else {
+      console.log("Message sent: %s", res.messageId);
+    }
+  });
+};
+
+exports.default = {
+  sendMail
+};
+
+/***/ }),
+
+/***/ "./app/lib/mailLienHe.js":
+/*!*******************************!*\
+  !*** ./app/lib/mailLienHe.js ***!
+  \*******************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+const fs = __webpack_require__(/*! fs */ "fs");
+
+const path = __webpack_require__(/*! path */ "path");
+
+const mailLienHe = async data => {
+  try {
+    let content = fs.readFileSync(path.join(__dirname, 'app', 'lib', 'templateMailLienHe.html'));
+    content = String(content);
+    console.log('content', content);
+    content = content.replace('{{content}}', data.tenNguoiGui);
+    return content;
+  } catch (err) {
+    return err;
+  }
+};
+
+exports.default = {
+  mailLienHe
 };
 
 /***/ }),
@@ -250,6 +414,36 @@ exports.register = async function (server, options) {
 };
 
 exports.name = 'app-mongo';
+
+/***/ }),
+
+/***/ "./app/lib/redis.js":
+/*!**************************!*\
+  !*** ./app/lib/redis.js ***!
+  \**************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+const bluebird = __webpack_require__(/*! bluebird */ "bluebird");
+
+const redis = __webpack_require__(/*! redis */ "redis");
+
+bluebird.promisifyAll(redis.RedisClient.prototype);
+bluebird.promisifyAll(redis.Multi.prototype);
+
+exports.register = async function (server, options) {
+  let settings = global.CONFIG.get('web.redisOptions');
+  global.client = redis.createClient(settings);
+  server.decorate('server', 'redis', global.client);
+  server.decorate('request', 'redis', global.client);
+  server.expose('client', global.client);
+};
+
+exports.name = 'app-redis';
+exports.dependencies = 'app-mongo';
 
 /***/ }),
 
@@ -458,6 +652,66 @@ const schema = {
 };
 const options = {
   collection: 'loaihanghoas',
+  timestamps: true
+};
+exports.schema = schema;
+exports.options = options;
+
+/***/ }),
+
+/***/ "./app/models/mail/model.js":
+/*!**********************************!*\
+  !*** ./app/models/mail/model.js ***!
+  \**********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _mongoose = __webpack_require__(/*! mongoose */ "mongoose");
+
+var _mongoose2 = _interopRequireDefault(_mongoose);
+
+var _schema = __webpack_require__(/*! ./schema */ "./app/models/mail/schema.js");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const MailSchema = new _mongoose.Schema(_schema.schema, _schema.options);
+exports.default = _mongoose2.default.model('Mail', MailSchema);
+
+/***/ }),
+
+/***/ "./app/models/mail/schema.js":
+/*!***********************************!*\
+  !*** ./app/models/mail/schema.js ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.options = exports.schema = undefined;
+
+var _mongoose = __webpack_require__(/*! mongoose */ "mongoose");
+
+const schema = {
+  tenNguoiGui: String,
+  email: String,
+  sDT: String,
+  fax: String,
+  noiDung: String
+};
+const options = {
+  collection: 'mails',
   timestamps: true
 };
 exports.schema = schema;
@@ -681,6 +935,63 @@ exports.options = options;
 
 /***/ }),
 
+/***/ "./app/models/taikhoan/model.js":
+/*!**************************************!*\
+  !*** ./app/models/taikhoan/model.js ***!
+  \**************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _mongoose = __webpack_require__(/*! mongoose */ "mongoose");
+
+var _mongoose2 = _interopRequireDefault(_mongoose);
+
+var _schema = __webpack_require__(/*! ./schema */ "./app/models/taikhoan/schema.js");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const TaiKhoanSchema = new _mongoose.Schema(_schema.schema, _schema.options);
+exports.default = _mongoose2.default.model('TaiKhoan', TaiKhoanSchema);
+
+/***/ }),
+
+/***/ "./app/models/taikhoan/schema.js":
+/*!***************************************!*\
+  !*** ./app/models/taikhoan/schema.js ***!
+  \***************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.options = exports.schema = undefined;
+
+var _mongoose = __webpack_require__(/*! mongoose */ "mongoose");
+
+const schema = {
+  tenTK: String,
+  matKhau: String
+};
+const options = {
+  collection: 'taikhoans',
+  timestamps: true
+};
+exports.schema = schema;
+exports.options = options;
+
+/***/ }),
+
 /***/ "./app/modules/admin/hanghoa/controller/index.js":
 /*!*******************************************************!*\
   !*** ./app/modules/admin/hanghoa/controller/index.js ***!
@@ -708,8 +1019,6 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 const HangHoa = _mongoose2.default.model('HangHoa');
 
 const save = async (request, h) => {
-  console.log('a', request.payload);
-
   try {
     let data = request.payload; //--------------------------------------------------------------------------
 
@@ -1052,13 +1361,16 @@ const hangHoaVal = {
   },
   save: {
     payload: {
-      _id: _joi2.default.string(),
+      _id: _joi2.default.ObjectId(),
       loaiHangHoaID: _joi2.default.object().required(),
       tenHangHoa: _joi2.default.string().required(),
       danhPhap: _joi2.default.string().required(),
       donViTinh: _joi2.default.string().required(),
       trongLuong: _joi2.default.number().required(),
       tongSoLuong: _joi2.default.number()
+    },
+    options: {
+      allowUnknown: true
     }
   },
   options: {
@@ -2300,6 +2612,436 @@ exports.default = phieuNhapVal;
 
 /***/ }),
 
+/***/ "./app/modules/mail/controller/index.js":
+/*!**********************************************!*\
+  !*** ./app/modules/mail/controller/index.js ***!
+  \**********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _mongoose = __webpack_require__(/*! mongoose */ "mongoose");
+
+var _mongoose2 = _interopRequireDefault(_mongoose);
+
+var _boom = __webpack_require__(/*! boom */ "boom");
+
+var _boom2 = _interopRequireDefault(_boom);
+
+var _mail = __webpack_require__(/*! ../../../lib/mail.js */ "./app/lib/mail.js");
+
+var _mail2 = _interopRequireDefault(_mail);
+
+var _mailLienHe = __webpack_require__(/*! ../../../lib/mailLienHe.js */ "./app/lib/mailLienHe.js");
+
+var _mailLienHe2 = _interopRequireDefault(_mailLienHe);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const Mail = _mongoose2.default.model('Mail');
+
+const sendMail = async (req, h) => {
+  try {
+    let data = req.payload;
+    let item;
+
+    if (!data._id) {
+      item = new Mail(data);
+      await item.save();
+    }
+
+    let options = {
+      subject: 'Hello',
+      text: 'Hello',
+      content: await _mailLienHe2.default.mailLienHe(data)
+    };
+    await _mail2.default.sendMail(options);
+    return item;
+  } catch (error) {
+    return _boom2.default.forbidden(error);
+  }
+};
+
+exports.default = {
+  sendMail
+};
+
+/***/ }),
+
+/***/ "./app/modules/mail/index.js":
+/*!***********************************!*\
+  !*** ./app/modules/mail/index.js ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var _index = __webpack_require__(/*! ./routes/index.js */ "./app/modules/mail/routes/index.js");
+
+var _index2 = _interopRequireDefault(_index);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.register = async (server, option) => {
+  server.route(_index2.default);
+};
+
+exports.name = 'mail';
+
+/***/ }),
+
+/***/ "./app/modules/mail/routes/index.js":
+/*!******************************************!*\
+  !*** ./app/modules/mail/routes/index.js ***!
+  \******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _index = __webpack_require__(/*! ../validate/index.js */ "./app/modules/mail/validate/index.js");
+
+var _index2 = _interopRequireDefault(_index);
+
+var _index3 = __webpack_require__(/*! ../controller/index.js */ "./app/modules/mail/controller/index.js");
+
+var _index4 = _interopRequireDefault(_index3);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = [{
+  method: 'POST',
+  path: '/mail',
+  handler: _index4.default.sendMail,
+  config: {
+    validate: _index2.default.sendMail,
+    tags: ['api'],
+    auth: false,
+    plugins: {
+      'hapi-swagger': {
+        responses: {
+          '400': {
+            'description': 'Bad Request'
+          }
+        },
+        payloadType: 'json'
+      }
+    }
+  }
+}];
+
+/***/ }),
+
+/***/ "./app/modules/mail/validate/index.js":
+/*!********************************************!*\
+  !*** ./app/modules/mail/validate/index.js ***!
+  \********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _joi = __webpack_require__(/*! joi */ "joi");
+
+var _joi2 = _interopRequireDefault(_joi);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+_joi2.default.ObjectId = __webpack_require__(/*! joi-objectid */ "joi-objectid")(_joi2.default);
+const hangHoaVal = {
+  sendMail: {
+    payload: {
+      email: _joi2.default.string().required(),
+      tenNguoiGui: _joi2.default.string().required(),
+      noiDung: _joi2.default.string().required(),
+      sDT: _joi2.default.string().required()
+    },
+    options: {
+      allowUnknown: true
+    }
+  }
+};
+exports.default = hangHoaVal;
+
+/***/ }),
+
+/***/ "./app/modules/users/controller/index.js":
+/*!***********************************************!*\
+  !*** ./app/modules/users/controller/index.js ***!
+  \***********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _mongoose = __webpack_require__(/*! mongoose */ "mongoose");
+
+var _mongoose2 = _interopRequireDefault(_mongoose);
+
+var _boom = __webpack_require__(/*! boom */ "boom");
+
+var _boom2 = _interopRequireDefault(_boom);
+
+var _jsonwebtoken = __webpack_require__(/*! jsonwebtoken */ "jsonwebtoken");
+
+var _jsonwebtoken2 = _interopRequireDefault(_jsonwebtoken);
+
+var _aguid = __webpack_require__(/*! aguid */ "aguid");
+
+var _aguid2 = _interopRequireDefault(_aguid);
+
+var _http = __webpack_require__(/*! http */ "http");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const TaiKhoan = _mongoose2.default.model('TaiKhoan');
+
+const save = async (req, h) => {
+  try {
+    let data = req.payload;
+    let item = new TaiKhoan(data);
+    await item.save();
+    return item;
+  } catch (error) {
+    return _boom2.default.forbidden(error);
+  }
+};
+
+const getDsTaiKhoan = async () => {
+  try {
+    let dsTaiKhoan = await TaiKhoan.find();
+    return dsTaiKhoan;
+  } catch (error) {
+    return _boom2.default.forbidden(error);
+  }
+};
+
+const login = async (request, h) => {
+  try {
+    let data = request.payload;
+    let getUser = await TaiKhoan.findOne({
+      tenTK: data.tenTK
+    });
+    let credentials = {};
+    let isValid = false;
+
+    if (getUser) {
+      credentials = {
+        tenTK: getUser.tenTK
+      };
+      console.log('user', getUser);
+
+      if (data.matKhau === getUser.matKhau) {
+        let session = {
+          valid: true,
+          id: (0, _aguid2.default)(),
+          expires: new Date().getTime() + 30 * 60 * 1000,
+          credentials
+        };
+        isValid = true;
+        request.server.redis.set(session.id, JSON.stringify(session));
+
+        let token = _jsonwebtoken2.default.sign(session, global.CONFIG.get('web.key'));
+
+        return h.response({
+          auth: true,
+          credentials,
+          isValid,
+          token
+        }).header('Authorization', token);
+      } else {
+        return {
+          credentials,
+          isValid
+        };
+      }
+    } else {
+      return {
+        credentials,
+        isValid
+      };
+    }
+  } catch (err) {
+    return _boom2.default.forbidden(err);
+  }
+};
+
+exports.default = {
+  save,
+  getDsTaiKhoan,
+  login
+};
+
+/***/ }),
+
+/***/ "./app/modules/users/index.js":
+/*!************************************!*\
+  !*** ./app/modules/users/index.js ***!
+  \************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var _index = __webpack_require__(/*! ./routes/index.js */ "./app/modules/users/routes/index.js");
+
+var _index2 = _interopRequireDefault(_index);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.register = async (server, option) => {
+  server.route(_index2.default);
+};
+
+exports.name = 'users-login';
+
+/***/ }),
+
+/***/ "./app/modules/users/routes/index.js":
+/*!*******************************************!*\
+  !*** ./app/modules/users/routes/index.js ***!
+  \*******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _index = __webpack_require__(/*! ../validate/index.js */ "./app/modules/users/validate/index.js");
+
+var _index2 = _interopRequireDefault(_index);
+
+var _index3 = __webpack_require__(/*! ../controller/index.js */ "./app/modules/users/controller/index.js");
+
+var _index4 = _interopRequireDefault(_index3);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = [{
+  method: 'GET',
+  path: '/get-taikhoan',
+  handler: _index4.default.getDsTaiKhoan,
+  config: {
+    tags: ['api'],
+    plugins: {
+      'hapi-swagger': {
+        responses: {
+          '400': {
+            'description': 'Bad request'
+          }
+        },
+        payloadType: 'json'
+      }
+    }
+  }
+}, {
+  method: 'POST',
+  path: '/taikhoan',
+  handler: _index4.default.save,
+  config: {
+    tags: ['api'],
+    validate: _index2.default.save,
+    plugins: {
+      'hapi-swagger': {
+        responses: {
+          '400': {
+            'description': 'Bad request'
+          }
+        },
+        payloadType: 'json'
+      }
+    }
+  }
+}, {
+  method: 'POST',
+  path: '/login',
+  handler: _index4.default.login,
+  config: {
+    tags: ['api'],
+    validate: _index2.default.login,
+    auth: false,
+    plugins: {
+      'hapi-swagger': {
+        responses: {
+          '400': {
+            'description': 'Bad request'
+          }
+        },
+        payloadType: 'json'
+      }
+    }
+  }
+}];
+
+/***/ }),
+
+/***/ "./app/modules/users/validate/index.js":
+/*!*********************************************!*\
+  !*** ./app/modules/users/validate/index.js ***!
+  \*********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _joi = __webpack_require__(/*! joi */ "joi");
+
+var _joi2 = _interopRequireDefault(_joi);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+_joi2.default.ObjectId = __webpack_require__(/*! joi-objectid */ "joi-objectid")(_joi2.default);
+const usersVal = {
+  save: {
+    payload: {
+      tenTK: _joi2.default.string().required(),
+      matKhau: _joi2.default.string().required()
+    }
+  },
+  login: {
+    payload: {
+      tenTK: _joi2.default.string().required(),
+      matKhau: _joi2.default.string().required()
+    }
+  }
+};
+exports.default = usersVal;
+
+/***/ }),
+
 /***/ "./package.json":
 /*!**********************!*\
   !*** ./package.json ***!
@@ -2307,7 +3049,7 @@ exports.default = phieuNhapVal;
 /*! exports provided: name, version, description, main, scripts, author, license, dependencies, devDependencies, default */
 /***/ (function(module) {
 
-module.exports = {"name":"project-backend","version":"1.0.0","description":"","main":"index.js","scripts":{"start":"npm run build:server:once && npm-run-all --parallel nodemon:prod watch:server","build:server:once":"cross-env NODE_ENV=development webpack --config webpack.config.js","watch:server":"cross-env NODE_ENV=development webpack --inline --progress --config webpack.config.js --watch","nodemon:prod":"cross-env NODE_ENV=development nodemon --inspect build.js"},"author":"","license":"ISC","dependencies":{"boom":"^7.3.0","config":"^3.0.1","hapi":"^17.8.4","hapi-pino":"^5.4.1","hapi-swagger":"^9.4.1","inert":"^5.1.2","joi":"^14.3.1","joi-objectid":"^2.0.0","lodash":"^4.17.11","mongoose":"^5.4.19","mongoose-paginate":"^5.0.3","vision":"^5.4.4"},"devDependencies":{"@babel/core":"^7.3.4","babel-loader":"^8.0.5","babel-preset-env":"^1.7.0","cross-env":"^5.2.0","npm-run-all":"^4.1.5","webpack":"^4.29.6","webpack-cli":"^3.2.3","webpack-node-externals":"^1.7.2"}};
+module.exports = {"name":"project-backend","version":"1.0.0","description":"","main":"index.js","scripts":{"start":"npm run build:server:once && npm-run-all --parallel nodemon:prod watch:server","build:server:once":"cross-env NODE_ENV=development webpack --config webpack.config.js","watch:server":"cross-env NODE_ENV=development webpack --inline --progress --config webpack.config.js --watch","nodemon:prod":"cross-env NODE_ENV=development nodemon --inspect build.js"},"author":"","license":"ISC","dependencies":{"aguid":"^2.0.0","bcrypt":"^3.0.6","bluebird":"^3.5.5","boom":"^7.3.0","config":"^3.0.1","hapi":"^17.8.4","hapi-auth-jwt2":"^8.6.1","hapi-pino":"^5.4.1","hapi-swagger":"^9.4.1","inert":"^5.1.2","joi":"^14.3.1","joi-objectid":"^2.0.0","jsonwebtoken":"^8.5.1","lodash":"^4.17.11","mongoose":"^5.4.19","mongoose-paginate":"^5.0.3","nodemailer":"^6.2.1","redis":"^2.8.0","vision":"^5.4.4"},"devDependencies":{"@babel/core":"^7.3.4","babel-loader":"^8.0.5","babel-preset-env":"^1.7.0","cross-env":"^5.2.0","npm-run-all":"^4.1.5","webpack":"^4.29.6","webpack-cli":"^3.2.3","webpack-node-externals":"^1.7.2"}};
 
 /***/ }),
 
@@ -2320,6 +3062,28 @@ module.exports = {"name":"project-backend","version":"1.0.0","description":"","m
 
 module.exports = __webpack_require__(/*! C:\Users\Admin\Documents\Doantotnghiep\project-backend\app.js */"./app.js");
 
+
+/***/ }),
+
+/***/ "aguid":
+/*!************************!*\
+  !*** external "aguid" ***!
+  \************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("aguid");
+
+/***/ }),
+
+/***/ "bluebird":
+/*!***************************!*\
+  !*** external "bluebird" ***!
+  \***************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("bluebird");
 
 /***/ }),
 
@@ -2367,6 +3131,17 @@ module.exports = require("hapi");
 
 /***/ }),
 
+/***/ "hapi-auth-jwt2":
+/*!*********************************!*\
+  !*** external "hapi-auth-jwt2" ***!
+  \*********************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("hapi-auth-jwt2");
+
+/***/ }),
+
 /***/ "hapi-swagger":
 /*!*******************************!*\
   !*** external "hapi-swagger" ***!
@@ -2375,6 +3150,17 @@ module.exports = require("hapi");
 /***/ (function(module, exports) {
 
 module.exports = require("hapi-swagger");
+
+/***/ }),
+
+/***/ "http":
+/*!***********************!*\
+  !*** external "http" ***!
+  \***********************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("http");
 
 /***/ }),
 
@@ -2411,6 +3197,17 @@ module.exports = require("joi-objectid");
 
 /***/ }),
 
+/***/ "jsonwebtoken":
+/*!*******************************!*\
+  !*** external "jsonwebtoken" ***!
+  \*******************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("jsonwebtoken");
+
+/***/ }),
+
 /***/ "lodash":
 /*!*************************!*\
   !*** external "lodash" ***!
@@ -2444,6 +3241,17 @@ module.exports = require("mongoose-paginate");
 
 /***/ }),
 
+/***/ "nodemailer":
+/*!*****************************!*\
+  !*** external "nodemailer" ***!
+  \*****************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("nodemailer");
+
+/***/ }),
+
 /***/ "path":
 /*!***********************!*\
   !*** external "path" ***!
@@ -2452,6 +3260,17 @@ module.exports = require("mongoose-paginate");
 /***/ (function(module, exports) {
 
 module.exports = require("path");
+
+/***/ }),
+
+/***/ "redis":
+/*!************************!*\
+  !*** external "redis" ***!
+  \************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("redis");
 
 /***/ }),
 

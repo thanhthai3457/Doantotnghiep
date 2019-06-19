@@ -6,7 +6,12 @@ import router from './route.js'
 import Notifications from 'vue-notification'
 import VueCurrencyFilter from 'vue-currency-filter'
 import Vuetify from 'vuetify/lib'
-import MyPlugin from './plugins/myplugin';
+import MyPlugin from './plugins/myplugin'
+import axios from 'axios'
+
+if(localStorage.getItem('token')) {
+  axios.defaults.headers.common['Authorization'] = localStorage.getItem('token')
+}
 
 Vue.use(Vuetify)
 Vue.config.productionTip = false

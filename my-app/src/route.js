@@ -9,10 +9,12 @@ import NhanVienRoute from './modules/nhanvien/index.js'
 import NhaCungCapRoute from './modules/nhacungcap/index.js'
 import MatHangRoute from './modules/hanghoa/index.js'
 import PhieuNhapRoute from './modules/phieunhap/index.js'
+import DashboardRoute from './modules/dashboard/index.js'
 
 // components client
 import Client from './views/Client/index.vue'
-
+import Login from './views/Login/index.vue'
+import CheckLogin from './plugins/auth.js'
 export default new Router({
   mode: 'history',
   routes: [
@@ -25,8 +27,14 @@ export default new Router({
       //  ] 
       }, 
       {
+        path:'/login.html',
+        name: 'login',
+        component: Login
+      },
+      {
         path: '/admin',
         name: 'admin',
+        beforeEnter: CheckLogin.isLogin,
         component: Admin,
         children: [
           ...LoaiMatHangRoute,
@@ -35,6 +43,7 @@ export default new Router({
           ...NhaCungCapRoute,
           ...MatHangRoute,
           ...PhieuNhapRoute,
+          ...DashboardRoute,
         ]
       }
   ]
